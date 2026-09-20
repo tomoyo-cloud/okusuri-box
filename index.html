@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>お薬模型 展開図ジェネレーター</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
+<style>
+:root{
+  --bg:#f3f5f8; --panel:#ffffff; --ink:#1d2a44; --muted:#5b6780; --line:#d6dce7;
+  --accent:#2a56b8; --accent-ink:#ffffff; --field:#ffffff; --field-line:#c3cbd9;
+  --sheet-shadow:0 10px 30px rgba(20,40,80,.14);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151a24; --panel:#1e2531; --ink:#e8ecf4; --muted:#a4afc4; --line:#323b4d;
+    --accent:#6d93ec; --accent-ink:#0f1524; --field:#161c27; --field-line:#3a4457;
+    --sheet-shadow:0 10px 30px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151a24; --panel:#1e2531; --ink:#e8ecf4; --muted:#a4afc4; --line:#323b4d;
+  --accent:#6d93ec; --accent-ink:#0f1524; --field:#161c27; --field-line:#3a4457;
+  --sheet-shadow:0 10px 30px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans","IPAPGothic","Noto Sans JP",sans-serif;
+  font-size:14px; line-height:1.55;
+}
+.app{display:grid; grid-template-columns:320px 1fr; min-height:100%}
+.app > *{min-width:0}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .preview{order:-1; padding-block:12px}
+  .controls{border-right:0; border-top:1px solid var(--line)}
+}
+.controls{
+  background:var(--panel); border-right:1px solid var(--line);
+  padding-block:20px; padding-inline:18px; display:flex; flex-direction:column; gap:14px;
+}
+.controls h1{font-size:18px; margin:0; font-weight:900; letter-spacing:.02em; text-wrap:balance}
+.controls p.lead{margin:0; color:var(--muted); font-size:12.5px}
+fieldset{border:1px solid var(--line); border-radius:8px; padding:10px 12px 12px; margin:0; display:grid; gap:8px}
+legend{font-size:11px; letter-spacing:.12em; color:var(--muted); padding-inline:4px}
+label{display:grid; gap:3px; font-size:12px; color:var(--muted)}
+input[type=text],input[type=number],select,textarea{
+  font:inherit; font-size:13.5px; color:var(--ink); background:var(--field);
+  border:1px solid var(--field-line); border-radius:6px; padding:6px 8px; width:100%;
+}
+textarea{resize:vertical; min-height:56px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.dims{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+.dims input{font-variant-numeric:tabular-nums}
+.row{display:flex; gap:8px; flex-wrap:wrap}
+button{
+  font:inherit; font-weight:700; border:1px solid var(--field-line); background:var(--field); color:var(--ink);
+  border-radius:8px; padding:9px 14px; cursor:pointer;
+}
+button.primary{background:var(--accent); color:var(--accent-ink); border-color:transparent; flex:1}
+.status{font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums}
+.status b{color:var(--ink)}
+.warn{color:#b3261e; font-weight:700}
+.preview{padding-block:20px; padding-inline:16px; overflow:hidden}
+.fit{position:relative; margin:0 auto}
+.sheet{
+  position:absolute; left:0; top:0; transform-origin:0 0;
+  background:#fff; color:#1b3170; box-shadow:var(--sheet-shadow);
+  font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans","IPAPGothic","Noto Sans JP",sans-serif;
+}
+.sheet svg.net{position:absolute; left:0; top:0}
+.p{position:absolute; overflow:hidden; line-height:1.25}
+.p .art{position:absolute; inset:0}
+.p .txt{position:absolute}
+.badge{display:inline-block; background:#1b3170; color:#fff; border-radius:1mm; padding:.3mm 1.4mm; font-weight:900; line-height:1.2}
+.badge.light{background:#fff; color:#1b3170; border:.3mm solid #1b3170}
+.vert{writing-mode:vertical-rl; text-orientation:mixed}
+.pink{background:#fdeaea; border:.4mm solid #ef9a9a; border-radius:2mm; color:#4a2a2a; font-weight:700}
+.legend{position:absolute; color:#4c5a78; font-size:2.8mm; line-height:1.4}
+.legend .k{display:inline-flex; align-items:center; gap:1.5mm; margin-right:5mm}
+.legend .k i{display:inline-block; width:8mm; height:0; border-top:.35mm solid #33405f}
+.legend .k i.f{border-top-style:dashed; border-top-color:#8a95ad}
+.scale{position:absolute; height:3mm; border-left:.3mm solid #33405f; border-right:.3mm solid #33405f}
+.scale::before{content:""; position:absolute; left:0; right:0; top:50%; border-top:.3mm solid #33405f}
+.scale span{position:absolute; left:0; top:3.2mm; font-size:2.6mm; white-space:nowrap; color:#4c5a78}
+.hint{margin:0; font-size:12px; color:#b3261e; background:#fdeaea; border-radius:6px; padding:8px 10px}
+.help{font-size:12px; color:var(--muted); display:grid; gap:6px}
+.help ol{margin:0; padding-left:18px; display:grid; gap:3px}
+@media print{
+  @page{ margin:0 }
+  body{background:#fff}
+  .controls{display:none !important}
+  .app{display:block}
+  .preview{padding:0; overflow:visible}
+  .fit{margin:0; height:auto !important}
+  .sheet{transform:none !important; box-shadow:none; position:static}
+  .p{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+}
+@media (prefers-reduced-motion: no-preference){ .sheet{transition:transform .15s ease} }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="controls" id="controls">
+    <h1>お薬模型 展開図ジェネレーター</h1>
+    <p class="lead">お薬教室の調剤体験用。数値と文言を変えると展開図がすぐ更新されます。印刷は「拡大縮小なし（100%）」で。</p>
+
+    <fieldset>
+      <legend>お薬の種類（見本から選ぶ）</legend>
+      <label>見本<select id="preset">
+        <option value="">— 選ぶと下の欄にまとめて入ります —</option>
+        <option value="nodo">のどなおーる錠（のど）</option>
+        <option value="netsu">ねつさまーる錠（熱・痛み）</option>
+        <option value="onaka">おなかげんき錠（おなか）</option>
+        <option value="hana">はなみずとまーる錠（鼻水・くしゃみ）</option>
+        <option value="seki">せきしずまーる錠（せき）</option>
+        <option value="vitamin">げんきビタミン錠（ビタミン）</option>
+      </select></label>
+      <p class="help" style="margin:0">見本を選んだあとで、名前や文言は自由に書き換えられます。</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>箱のサイズ（mm）</legend>
+      <div class="dims">
+        <label>幅 W<input id="w" type="number" min="30" max="200" step="1" value="95"></label>
+        <label>高さ H<input id="h" type="number" min="20" max="200" step="1" value="50"></label>
+        <label>厚み D<input id="d" type="number" min="8" max="80" step="1" value="20"></label>
+      </div>
+      <label>用紙<select id="paper"><option value="auto">自動（A4→A3）</option><option value="A4">A4</option><option value="A3">A3</option></select></label>
+      <div class="status" id="status"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>表面（正面）</legend>
+      <label>区分<input id="category" type="text" value="処方薬"></label>
+      <label>薬の名前<input id="name" type="text" value="のどなおーる錠"></label>
+      <label>成分<input id="ingredient" type="text" value="1錠中：トラネキサム酸 250mg"></label>
+      <label>効き目<input id="indication" type="text" value="のどの炎症・痛みに"></label>
+      <label>入数<input id="count" type="text" value="20錠（PTP）"></label>
+      <label>剤形<input id="form" type="text" value="内服薬"></label>
+      <label>キャッチコピー<input id="tagline" type="text" value="みんなの笑顔のために"></label>
+      <label>テーマ色<select id="theme"><option value="blue">そら（青）</option><option value="green">わかば（緑）</option><option value="orange">ゆうひ（橙）</option><option value="pink">さくら（桃）</option></select></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>裏面（つかいかた）</legend>
+      <label>1回<input id="dose1" type="text" value="1個（1錠）"></label>
+      <label>1日<input id="dose2" type="text" value="3回（1日分）"></label>
+      <label>スローガン<input id="slogan" type="text" value="くすりを正しく使おう"></label>
+      <label>注意書き<textarea id="note">これは調剤体験用です。
+くすりの代わりに消しゴムを使っています。
+食べたり、口に入れたりしないでください。</textarea></label>
+      <label>確認欄の見出し<input id="check" type="text" value="かくにんしました"></label>
+      <label>側面の注意書き<textarea id="sidenote">これは調剤体験用です。中身は消しゴムです。医薬品ではありません。</textarea></label>
+    </fieldset>
+
+    <p class="hint" id="printhint" hidden></p>
+    <p class="help" id="devicehint"></p>
+    <div class="row">
+      <button class="primary" id="print" type="button">印刷する</button>
+      <button id="reset" type="button">初期値に戻す</button>
+    </div>
+
+    <div class="help">
+      <b>組み立て方</b>
+      <ol>
+        <li>厚めの紙（ケント紙・厚口マット紙）に100%で印刷</li>
+        <li>実線で切る。点線は定規と先の丸いペンで筋をつける</li>
+        <li>点線をすべて谷折り（印刷面が外側）にする</li>
+        <li>「のりしろ」を裏面パネルの内側に貼って筒にする</li>
+        <li>上下は、小さなフタ2枚を内側に倒してから大きなフタをかぶせ、差し込みを中に入れる</li>
+      </ol>
+    </div>
+  </aside>
+
+  <main class="preview">
+    <div class="fit" id="fit"><div class="sheet" id="sheet"></div></div>
+  </main>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const fields = ['w','h','d','paper','category','name','ingredient','indication','count','form','tagline','theme','dose1','dose2','slogan','note','check','sidenote'];
+  const defaults = {};
+  fields.forEach(f => defaults[f] = $(f).value);
+
+  const PRESETS = {
+    nodo:   {name:'のどなおーる錠', ingredient:'1錠中：トラネキサム酸 250mg', indication:'のどの炎症・痛みに', count:'20錠（PTP）', dose1:'1個（1錠）', dose2:'3回（1日分）', tagline:'みんなの笑顔のために', theme:'blue'},
+    netsu:  {name:'ねつさまーる錠', ingredient:'1錠中：アセトアミノフェン 200mg', indication:'熱・頭痛・歯の痛みに', count:'10錠（PTP）', dose1:'1個（1錠）', dose2:'3回（1日分）', tagline:'つらいときのそばに', theme:'orange'},
+    onaka:  {name:'おなかげんき錠', ingredient:'1錠中：ビフィズス菌 30mg', indication:'おなかの調子をととのえる', count:'30錠（PTP）', dose1:'1個（1錠）', dose2:'3回（1日分）', tagline:'おなかから元気に', theme:'green'},
+    hana:   {name:'はなみずとまーる錠', ingredient:'1錠中：クロルフェニラミン 2mg', indication:'鼻水・くしゃみ・鼻づまりに', count:'20錠（PTP）', dose1:'1個（1錠）', dose2:'2回（1日分）', tagline:'すっきり深呼吸', theme:'pink'},
+    seki:   {name:'せきしずまーる錠', ingredient:'1錠中：デキストロメトルファン 15mg', indication:'せき・たんに', count:'20錠（PTP）', dose1:'1個（1錠）', dose2:'3回（1日分）', tagline:'ゆっくり休めるように', theme:'blue'},
+    vitamin:{name:'げんきビタミン錠', ingredient:'1錠中：ビタミンC 500mg', indication:'からだの調子をととのえる', count:'30錠（PTP）', dose1:'1個（1錠）', dose2:'1回（1日分）', tagline:'まいにちの元気に', theme:'orange'},
+  };
+  const THEMES = {
+    blue:  {sky:'#eef5fd', sky2:'#d6e6fa', hill:'#a9c7ee', hill2:'#8fb4e6', cloud:'#c9dcf5', ink:'#1b3170', accent:'#2f5fbf'},
+    green: {sky:'#eef8f0', sky2:'#d5eddb', hill:'#a6d3b2', hill2:'#86c297', cloud:'#cfe7d5', ink:'#1f4d33', accent:'#2f8a55'},
+    orange:{sky:'#fff5ea', sky2:'#fde4c8', hill:'#f3c28e', hill2:'#eba96a', cloud:'#f8dcbf', ink:'#5a3410', accent:'#d9762a'},
+    pink:  {sky:'#fdf0f4', sky2:'#f9dbe5', hill:'#f0b6c9', hill2:'#e797b2', cloud:'#f5cfdc', ink:'#5a2038', accent:'#c9497a'},
+  };
+
+  // ---------- geometry (all mm) ----------
+  function geometry(W,H,D){
+    const G  = Math.max(8, Math.min(15, Math.round(D*0.5)));      // のりしろ幅
+    const Fd = Math.max(8, Math.min(D-2, Math.floor(W/2)-2));      // 小フタ（ダストフラップ）の深さ
+    const T  = Math.max(10, Math.min(22, Math.round(D*0.8)));      // 差し込みの長さ
+    const gi = 3, ti = 1, r = Math.min(4, T/2), ch = Math.min(4, D/4), ch2 = Math.min(2, D/6), gap = 1;
+    const xG0=0, xG1=G, xA1=G+D, xF1=xA1+W, xB1=xF1+D, xK1=xB1+W;
+    const yT0=0, yT1=T, yD1=T+D, yH1=T+D+H, yD2=yH1+D, yT2=yD2+T;
+    return {W,H,D,G,Fd,T,gi,ti,r,ch,ch2,gap,xG0,xG1,xA1,xF1,xB1,xK1,yT0,yT1,yD1,yH1,yD2,yT2, totalW:xK1, totalH:yT2};
+  }
+
+  function outlinePath(g){
+    const {G,Fd,gi,ti,r,ch,ch2,gap,xA1,xF1,xB1,xK1,yT1,yD1,yH1,yD2,yT2} = g;
+    const P = [];
+    const M=(x,y)=>P.push(`M${x} ${y}`), L=(x,y)=>P.push(`L${x} ${y}`), A=(x,y,sw)=>P.push(`A${r} ${r} 0 0 ${sw} ${x} ${y}`);
+    // のりしろ（左）
+    M(G, yH1); L(0, yH1-gi); L(0, yD1+gi); L(G, yD1);
+    // 側面A 上の小フタ
+    L(G, yD1-Fd+ch); L(G+ch, yD1-Fd); L(xA1-gap-ch2, yD1-Fd); L(xA1-gap, yD1-Fd+ch2); L(xA1-gap, yD1); L(xA1, yD1);
+    // 上フタ＋差し込み
+    L(xA1, yT1); L(xA1+ti, yT1); L(xA1+ti, r); A(xA1+ti+r, 0, 1); L(xF1-ti-r, 0); A(xF1-ti, r, 1); L(xF1-ti, yT1); L(xF1, yT1); L(xF1, yD1);
+    // 側面B 上の小フタ
+    L(xF1+gap, yD1); L(xF1+gap, yD1-Fd+ch2); L(xF1+gap+ch2, yD1-Fd); L(xB1-ch, yD1-Fd); L(xB1, yD1-Fd+ch); L(xB1, yD1);
+    // 裏面パネル
+    L(xK1, yD1); L(xK1, yH1); L(xB1, yH1);
+    // 側面B 下の小フタ
+    L(xB1, yH1+Fd-ch); L(xB1-ch, yH1+Fd); L(xF1+gap+ch2, yH1+Fd); L(xF1+gap, yH1+Fd-ch2); L(xF1+gap, yH1); L(xF1, yH1);
+    // 下フタ＋差し込み
+    L(xF1, yD2); L(xF1-ti, yD2); L(xF1-ti, yT2-r); A(xF1-ti-r, yT2, 1); L(xA1+ti+r, yT2); A(xA1+ti, yT2-r, 1); L(xA1+ti, yD2); L(xA1, yD2); L(xA1, yH1);
+    // 側面A 下の小フタ
+    L(xA1-gap, yH1); L(xA1-gap, yH1+Fd-ch2); L(xA1-gap-ch2, yH1+Fd); L(G+ch, yH1+Fd); L(G, yH1+Fd-ch); L(G, yH1);
+    P.push('Z');
+    return P.join(' ');
+  }
+
+  function foldLines(g){
+    const {G,ti,gap,xA1,xF1,xB1,yT1,yD1,yH1,yD2} = g;
+    const seg = (x1,y1,x2,y2)=>`M${x1} ${y1}L${x2} ${y2}`;
+    return [
+      seg(G,yD1,G,yH1), seg(xA1,yD1,xA1,yH1), seg(xF1,yD1,xF1,yH1), seg(xB1,yD1,xB1,yH1),
+      seg(G,yD1,xA1-gap,yD1), seg(xA1,yD1,xF1,yD1), seg(xF1+gap,yD1,xB1,yD1),
+      seg(G,yH1,xA1-gap,yH1), seg(xA1,yH1,xF1,yH1), seg(xF1+gap,yH1,xB1,yH1),
+      seg(xA1+ti,yT1,xF1-ti,yT1), seg(xA1+ti,yD2,xF1-ti,yD2),
+    ].join(' ');
+  }
+
+  // ---------- art ----------
+  function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function nl(s){ return esc(s).replace(/\n/g,'<br>'); }
+
+  function cloud(x,y,s,fill){
+    return `<g transform="translate(${x} ${y}) scale(${s})" fill="${fill}"><ellipse cx="0" cy="0" rx="6" ry="3.2"/><circle cx="-2.5" cy="-1.6" r="2.6"/><circle cx="1.5" cy="-2.2" r="3.1"/></g>`;
+  }
+  function sprout(x,y,s,leaf,stem){
+    return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 0 C0 -3 0 -6 0 -8" stroke="${stem}" stroke-width="1" fill="none" stroke-linecap="round"/><path d="M0 -5 C-1 -9 -5 -9 -6 -6 C-3 -4 -1 -4 0 -5Z" fill="${leaf}"/><path d="M0 -6 C1 -10 5 -10 6 -7 C3 -5 1 -5 0 -6Z" fill="${leaf}"/></g>`;
+  }
+  function frontArt(W,H,t){
+    const clouds = cloud(W*0.14, H*0.16, W/95, t.cloud) + cloud(W*0.79, H*0.12, W/90, t.cloud) + cloud(W*0.9, H*0.28, W/120, t.cloud);
+    const hill = `<path d="M0 ${H*0.72} C ${W*0.25} ${H*0.58}, ${W*0.5} ${H*0.66}, ${W*0.72} ${H*0.6} S ${W*0.92} ${H*0.6}, ${W} ${H*0.62} L${W} ${H} L0 ${H}Z" fill="${t.hill}"/>`;
+    const hill2 = `<path d="M${W*0.55} ${H} C ${W*0.68} ${H*0.78}, ${W*0.86} ${H*0.8}, ${W} ${H*0.7} L${W} ${H}Z" fill="${t.hill2}"/>`;
+    // 家と木
+    const hx = W*0.8, hy = H*0.63, hs = Math.min(W,H)/50;
+    const house = `<g transform="translate(${hx} ${hy}) scale(${hs})">
+      <path d="M-5 0 L-5 -6 L0 -10.5 L5 -6 L5 0Z" fill="#fff6d6"/><path d="M-6 -6 L0 -11.5 L6 -6Z" fill="${t.accent}"/>
+      <rect x="-1.4" y="-4" width="2.8" height="4" fill="${t.accent}"/><rect x="2" y="-10" width="1.6" height="2.4" fill="${t.accent}"/>
+      <circle cx="9.5" cy="-7" r="4.2" fill="#8ec98f"/><rect x="9" y="-4" width="1" height="4" fill="#8a6a3c"/></g>`;
+    // 錠剤
+    const px = W*0.68, py = H*0.42, pr = Math.min(W,H)*0.15;
+    const pill = `<g transform="translate(${px} ${py})"><circle r="${pr}" fill="#eef4fb" stroke="${t.accent}" stroke-width="${pr*0.14}"/>
+      <path d="M${-pr*0.55} ${pr*0.55} L${pr*0.55} ${-pr*0.55}" stroke="${t.accent}" stroke-width="${pr*0.12}" stroke-linecap="round"/>
+      <g stroke="#f2b134" stroke-width="${pr*0.12}" stroke-linecap="round"><path d="M${pr*1.25} ${-pr*0.9} l${pr*0.35} ${-pr*0.45}"/><path d="M${pr*1.45} ${-pr*0.4} l${pr*0.5} ${-pr*0.1}"/></g></g>`;
+    const spr = sprout(W*0.08, H*0.95, Math.min(W,H)/55*1.2, '#43a047', '#2e7d32');
+    return `<svg viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.sky2}"/><stop offset="1" stop-color="${t.sky}"/></linearGradient></defs>
+      <rect width="${W}" height="${H}" fill="url(#sky)"/>${clouds}${hill}${hill2}${house}${spr}</svg>`;
+  }
+  function plainArt(W,H,t,withClouds){
+    const c = withClouds ? cloud(W*0.85, H*0.5, Math.min(W/95, H/22), t.cloud) : '';
+    return `<svg viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="${t.sky}"/>${c}</svg>`;
+  }
+  function backArt(W,H,t){
+    const spr = sprout(W*0.07, H*0.9, Math.min(W,H)/55, '#43a047', '#2e7d32');
+    return `<svg viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="${t.sky}"/><rect x="0" y="${H*0.985}" width="${W}" height="${H*0.015}" fill="${t.hill}"/>${spr}</svg>`;
+  }
+
+  // ---------- render ----------
+  function v(id){ return $(id).value; }
+  const mm = n => `${n.toFixed(2)}mm`;
+  function panel(x,y,w,h,inner,extra){ return `<div class="p" style="left:${mm(x)};top:${mm(y)};width:${mm(w)};height:${mm(h)};${extra||''}">${inner}</div>`; }
+
+  function render(){
+    const W = +v('w')||95, H = +v('h')||50, D = +v('d')||20;
+    const g = geometry(W,H,D);
+    const t = THEMES[v('theme')] || THEMES.blue;
+    const k = Math.max(0.55, Math.min(1.8, Math.min(W/95, H/50)));   // 文字スケール
+    const ks = Math.max(0.5, Math.min(1.6, D/20));                   // 側面の文字スケール
+    const ink = t.ink;
+
+    // 用紙判定（余白10mm）
+    const sizes = {A4:[210,297], A3:[297,420]};
+    const margin = 10;
+    let paper = v('paper'), orient='portrait', page=null;
+    const fits = (pw,ph)=> g.totalW+2*margin <= pw && g.totalH+2*margin+12 <= ph;
+    const tryPaper = name => { const [s,l]=sizes[name]; if(fits(s,l)) return {name,orient:'portrait',pw:s,ph:l}; if(fits(l,s)) return {name,orient:'landscape',pw:l,ph:s}; return null; };
+    if(paper==='auto'){ page = tryPaper('A4') || tryPaper('A3'); }
+    else { page = tryPaper(paper); }
+    const over = !page;
+    if(over){ const [s,l]=sizes[paper==='A4'?'A4':'A3']; page = (g.totalW>g.totalH) ? {name:paper==='A4'?'A4':'A3',orient:'landscape',pw:l,ph:s} : {name:paper==='A4'?'A4':'A3',orient:'portrait',pw:s,ph:l}; }
+
+    const ox = Math.max(margin, (page.pw - g.totalW)/2);
+    const oy = Math.max(margin, (page.ph - g.totalH - 12)/2);
+
+    const parts = [];
+    // 外形と折り線
+    parts.push(`<svg class="net" width="${page.pw}mm" height="${page.ph}mm" viewBox="0 0 ${page.pw} ${page.ph}" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(${ox} ${oy})">
+        <path d="${outlinePath(g)}" fill="#ffffff" stroke="none"/>
+      </g></svg>`);
+
+    const P = (x,y,w,h,inner,extra)=>parts.push(panel(ox+x,oy+y,w,h,inner,extra));
+    const {G,Fd,T,xG0,xA1,xF1,xB1,yT1,yD1,yH1,yD2} = g;
+
+    // 表面
+    P(xA1, yD1, W, H,
+      `<div class="art">${frontArt(W,H,t)}</div>
+       <div class="txt" style="left:${mm(W*0.05)};top:${mm(H*0.07)};font-size:${mm(3.2*k)}"><span class="badge" style="background:${ink}">${esc(v('category'))}</span></div>
+       <div class="txt" style="right:${mm(W*0.04)};top:${mm(H*0.06)};font-size:${mm(3.4*k)};font-weight:900;color:${ink}">${esc(v('count'))}</div>
+       <div class="txt" style="left:${mm(W*0.05)};top:${mm(H*0.2)};width:${mm(W*0.62)};font-size:${mm(9*k)};font-weight:900;color:${ink};letter-spacing:.01em;line-height:1.05;white-space:nowrap">${esc(v('name'))}</div>
+       <div class="txt" style="left:${mm(W*0.05)};top:${mm(H*0.43)};width:${mm(W*0.6)};border-top:${mm(0.5*k)} solid ${ink};padding-top:${mm(1.2*k)};font-size:${mm(3.1*k)};font-weight:700;color:${ink};line-height:1.35">${esc(v('ingredient'))}<br>${esc(v('indication'))}</div>
+       <div class="txt" style="left:${mm(W*0.17)};bottom:${mm(H*0.1)};font-size:${mm(4*k)};font-weight:700;color:${t.accent}">${esc(v('tagline'))}</div>
+       <div class="txt" style="right:${mm(W*0.04)};bottom:${mm(H*0.1)};font-size:${mm(3.1*k)}"><span class="badge light" style="color:${ink};border-color:${ink}">${esc(v('form'))}</span></div>`);
+
+    // 裏面（つかいかた）
+    const noteW = W*0.40;
+    const sloganLen = Math.max(1, [...v('slogan')].length);
+    const sloganFs = Math.min(5*k, (W*0.43)/sloganLen);
+    P(xB1, yD1, W, H,
+      `<div class="art">${backArt(W,H,t)}</div>
+       <div class="txt" style="left:${mm(W*0.05)};top:${mm(H*0.08)};width:${mm(W*0.45)};border:${mm(0.5*k)} solid ${ink};border-radius:${mm(2*k)};overflow:hidden;background:#fff;color:${ink}">
+         <div style="background:${ink};color:#fff;font-weight:900;font-size:${mm(3.2*k)};padding:${mm(0.6*k)} ${mm(2*k)};text-align:center">つかいかた</div>
+         <div style="padding:${mm(1.2*k)} ${mm(2*k)};font-weight:900;font-size:${mm(4.2*k)};line-height:1.35;white-space:nowrap">
+           <div>1回　${esc(v('dose1'))}</div><div>1日　${esc(v('dose2'))}</div></div>
+       </div>
+       <div class="txt pink" style="right:${mm(W*0.04)};top:${mm(H*0.08)};width:${mm(noteW)};padding:${mm(1.2*k)} ${mm(1.8*k)};font-size:${mm(2.3*k)};line-height:1.4">${nl(v('note'))}</div>
+       <div class="txt" style="right:${mm(W*0.04)};top:${mm(H*0.55)};width:${mm(noteW)};color:${ink};font-weight:900;font-size:${mm(2.9*k)}">${esc(v('check'))}
+         <div style="margin-top:${mm(0.8*k)};height:${mm(H*0.26)};border:${mm(0.4*k)} solid ${ink};border-radius:${mm(1.5*k)};background:#fff"></div></div>
+       <div class="txt" style="left:${mm(W*0.13)};bottom:${mm(H*0.1)};max-width:${mm(W*0.43)};font-size:${mm(sloganFs)};font-weight:900;color:${ink};white-space:nowrap">${esc(v('slogan'))}</div>`);
+
+    // 側面A（左）：区分＋薬名を縦書き
+    P(G, yD1, D, H,
+      `<div class="art">${plainArt(D,H,t,false)}</div>
+       <div class="txt vert" style="left:0;top:${mm(H*0.08)};width:100%;height:${mm(H*0.84)};display:flex;justify-content:center;align-items:center;color:${ink};font-weight:900;font-size:${mm(4.2*ks)};line-height:1">
+         <span class="badge" style="background:${ink};font-size:${mm(2.8*ks)};margin-bottom:${mm(1.5*ks)};padding:${mm(1.2*ks)} ${mm(0.3*ks)}">${esc(v('category'))}</span>${esc(v('name'))}</div>`);
+
+    // 側面B（右）：注意書き 縦書き
+    P(xF1, yD1, D, H,
+      `<div class="art">${plainArt(D,H,t,false)}</div>
+       <div class="txt pink vert" style="left:${mm(D*0.1)};top:${mm(H*0.06)};width:${mm(D*0.8)};height:${mm(H*0.88)};display:flex;justify-content:center;align-items:center;font-size:${mm(2.35*ks)};line-height:1.45;padding:${mm(0.8*ks)};text-align:left;overflow:hidden">${esc(v('sidenote'))}</div>`);
+
+    // 上フタ・下フタ（薬名の帯）
+    const capInner = `<div class="art">${plainArt(W,D,t,true)}</div>
+       <div class="txt" style="left:${mm(W*0.05)};top:0;height:100%;display:flex;align-items:center;gap:${mm(2*k)};color:${ink};font-weight:900;font-size:${mm(Math.min(4.6*k, D*0.32))};white-space:nowrap">
+         <span class="badge" style="background:${ink};font-size:75%">${esc(v('category'))}</span><span>${esc(v('name'))}</span>
+         <span style="font-weight:700;font-size:70%;margin-left:${mm(2*k)}">${esc(v('count'))}</span></div>`;
+    P(xA1, yT1, W, D, capInner);
+    P(xA1, yH1, W, D, capInner);
+
+    // 差し込み・小フタ・のりしろ（うすい色・内側に隠れる）
+    const flapStyle = `background:${t.sky2};color:#6b7a99;font-size:2.4mm;display:flex;align-items:center;justify-content:center`;
+    parts.push(`<div class="p" style="left:${mm(ox+xA1)};top:${mm(oy)};width:${mm(W)};height:${mm(T)};${flapStyle}">差し込み</div>`);
+    parts.push(`<div class="p" style="left:${mm(ox+xA1)};top:${mm(oy+yD2)};width:${mm(W)};height:${mm(T)};${flapStyle}">差し込み</div>`);
+    [[G, yD1-Fd],[xF1, yD1-Fd],[G, yH1],[xF1, yH1]].forEach(([x,y])=>{
+      parts.push(`<div class="p" style="left:${mm(ox+x)};top:${mm(oy+y)};width:${mm(D)};height:${mm(Fd)};background:${t.sky2}"></div>`);
+    });
+    parts.push(`<div class="p vert" style="left:${mm(ox+xG0)};top:${mm(oy+yD1)};width:${mm(G)};height:${mm(H)};${flapStyle}">のりしろ</div>`);
+
+    // 切り線・折り線は最前面に
+    parts.push(`<svg class="net" width="${page.pw}mm" height="${page.ph}mm" viewBox="0 0 ${page.pw} ${page.ph}" xmlns="http://www.w3.org/2000/svg" style="pointer-events:none">
+      <g transform="translate(${ox} ${oy})">
+        <path d="${foldLines(g)}" fill="none" stroke="#8a95ad" stroke-width="0.25" stroke-dasharray="1.6 1.2"/>
+        <path d="${outlinePath(g)}" fill="none" stroke="#33405f" stroke-width="0.3" stroke-linejoin="round"/>
+      </g></svg>`);
+
+    // 凡例・スケールバー（箱の外）
+    const ly = oy + g.totalH + 4;
+    parts.push(`<div class="legend" style="left:${mm(ox)};top:${mm(ly)}"><span class="k"><i></i>切る</span><span class="k"><i class="f"></i>折る（谷折り・印刷面が外）</span><span class="k">箱の仕上がり：${W}×${H}×${D} mm</span></div>`);
+    parts.push(`<div class="scale" style="left:${mm(ox+g.totalW-50)};top:${mm(ly+1)};width:50mm"><span>← 50mm（印刷後に定規で確認）</span></div>`);
+
+    const sheet = $('sheet');
+    sheet.style.width = page.pw+'mm'; sheet.style.height = page.ph+'mm';
+    sheet.innerHTML = parts.join('');
+
+    // 印刷用ページサイズ
+    let st = $('pagestyle'); if(!st){ st=document.createElement('style'); st.id='pagestyle'; document.head.appendChild(st); }
+    st.textContent = `@page{ size:${page.name} ${page.orient}; margin:0 }`;
+
+    $('status').innerHTML = `展開図 <b>${g.totalW}×${g.totalH} mm</b> ／ 用紙 <b>${page.name} ${page.orient==='landscape'?'横':'縦'}</b>` + (over ? ` <span class="warn">— 用紙からはみ出します。サイズを小さくするかA3にしてください</span>` : '');
+    fit();
+  }
+
+  function fit(){
+    const sheet = $('sheet'), box = $('fit');
+    const pxW = sheet.offsetWidth, pxH = sheet.offsetHeight;
+    const avail = box.parentElement.clientWidth;
+    const s = Math.min(1, avail/pxW);
+    sheet.style.transform = `scale(${s})`;
+    box.style.width = (pxW*s)+'px'; box.style.height = (pxH*s)+'px';
+  }
+
+  function save(){ try{ const o={}; fields.forEach(f=>o[f]=$(f).value); localStorage.setItem('okusuri-box', JSON.stringify(o)); }catch(e){} }
+  function load(){ try{ const o=JSON.parse(localStorage.getItem('okusuri-box')||'null'); if(o) fields.forEach(f=>{ if(o[f]!=null) $(f).value=o[f]; }); }catch(e){} }
+
+  fields.forEach(f => $(f).addEventListener('input', ()=>{ render(); save(); }));
+  $('preset').addEventListener('change', ()=>{
+    const p = PRESETS[$('preset').value]; if(!p) return;
+    Object.keys(p).forEach(k=>{ if($(k)) $(k).value = p[k]; });
+    render(); save();
+  });
+  const embedded = (()=>{ try{ return window.self !== window.top; }catch(e){ return true; } })();
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  const isAndroid = /Android/.test(ua);
+  const mobile = isIOS || isAndroid;
+  if(embedded){
+    $('printhint').textContent = 'この画面（claude.aiの中）からは印刷できません。共有されたPDFを開いて印刷するか、このHTMLファイルをパソコンのブラウザで開いてください。';
+    $('printhint').hidden = false;
+    $('print').textContent = '印刷する（ファイル版で有効）';
+  } else if(isIOS){
+    $('print').textContent = '印刷・PDFにする';
+    $('devicehint').innerHTML = '<b>iPhone / iPad</b><br>ボタンを押すと印刷画面が開きます。Wi-Fiのプリンタ（AirPrint）でそのまま印刷できます。PDFにしたいときは、印刷画面のプレビューを広げる（ピンチアウト）→ 共有 →「"ファイル"に保存」。';
+  } else if(isAndroid){
+    $('print').textContent = '印刷・PDFにする';
+    $('devicehint').innerHTML = '<b>Android</b><br>ボタンを押すと印刷画面が開きます。プリンタを選べばWi-Fiで印刷、「PDF形式で保存」を選べばPDFになります。用紙はA4、倍率は100%に。';
+  } else {
+    $('devicehint').innerHTML = '<b>パソコン</b><br>ボタンを押すと印刷画面が開きます。用紙A4・横、倍率100%（拡大縮小なし）、「背景のグラフィック」をONに。送信先を「PDFに保存」にするとPDFファイルにもできます。';
+  }
+  $('print').addEventListener('click', ()=>{ try{ window.print(); }catch(e){} });
+  $('reset').addEventListener('click', ()=>{ fields.forEach(f=>$(f).value=defaults[f]); render(); save(); });
+  window.addEventListener('resize', fit);
+  window.addEventListener('beforeprint', ()=>{ $('sheet').style.transform='none'; });
+  window.addEventListener('afterprint', fit);
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(fit); }
+
+  load(); render();
+})();
+</script>
+</body>
+</html>
